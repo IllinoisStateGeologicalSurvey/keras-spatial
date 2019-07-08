@@ -8,14 +8,15 @@ from pydap.net import HTTPError
 
 class SpatialDataGenerator(object):
 
-    def __init__(self, source=None, bands=1, target_crs=None,
+    def __init__(self, source=None, indexes=None, target_crs=None,
             target_size=None, interpolation='nearest',
             shuffle=False):
         """
 
         Args:
           source (str): raster file path or OPeNDAP server
-          bands (int|[int]): raster file band (int) or bands ([int,...])
+          indexes (int|[int]): raster file band (int) or bands ([int,...])
+                               (default=None for all bands)
           target_crs (str): proj4 definition defaults to dataframe.crs
           shuffle (bool): shuffle batch of data
           target_size ((int,int)): tuple with patch size
@@ -25,7 +26,7 @@ class SpatialDataGenerator(object):
         self._mode = ''
         self.src = None
         self.source = source
-        self.bands = bands
+        self.indexes = indexes
         self.target_size = target_size
         self.interpolation = interpolation
         self.shuffle = shuffle
@@ -88,7 +89,7 @@ class SpatialDataGenerator(object):
             bot, left = self.src.index(bounds[1], bounds[2])
             top, right = self.src.index(bounds[3], bounds[4])
             window = rasterio.windows.Window(left, top, right-left, bot-top)
-            batch.append(self.src.read(self.bands, window=window))
+            batch.append(self.src.read(indexes=self.indexes, window=window))
 
         return np.stack(batch)
 
