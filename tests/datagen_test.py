@@ -3,6 +3,7 @@
 
 import pytest
 from keras_spatial.datagen import SpatialDataGenerator
+import keras_spatial.grid as grid
 from geopandas import GeoDataFrame
 
 __author__ = "Jeff Terstriep"
@@ -31,6 +32,11 @@ def test_missing_raster():
     with pytest.raises(OSError):
         dg.source = 'xx'
 
+def test_missing_url():
+    dg = SpatialDataGenerator()
+    with pytest.raises(OSError):
+        dg.source = 'http://lidar.ncsa.illinois.edu:9000/test/xx'
+
 def test_get_batch():
     df = GeoDataFrame.from_file('data/grid.gpkg')
     dg = SpatialDataGenerator()
@@ -38,4 +44,12 @@ def test_get_batch():
     gen = dg.flow_from_dataframe(df, batch_size=60)
     count = sum([batch.shape[0] for batch in gen])
     assert count == len(df)
-        
+
+def test_get_batch_url():
+    df = GeoDataFrame.from_file('data/grid.gpkg')
+    dg = SpatialDataGenerator()
+    dg.source = 'http://lidar.ncsa.illinois.edu:9000/test/mclean_roi.tif'
+    gen = dg.flow_from_dataframe(df, batch_size=60)
+    count = sum([batch.shape[0] for batch in gen])
+    assert count == len(df)
+
