@@ -93,11 +93,11 @@ class SpatialDataGenerator(object):
 
         return np.stack(batch)
 
-    def flow_from_dataframe(self, df, target_crs=None, batch_size=32):
+    def flow_from_dataframe(self, dataframe, target_crs=None, batch_size=32):
         """extracts data from source based on dataframe extents
 
         Args:
-          df (geodataframe): dataframe with spatial extents
+          dataframe (geodataframe): dataframe with spatial extents
           target_crs (str): proj4 definition defaults to dataframe.crs
           batch_size (int): batch size to process
 
@@ -105,11 +105,12 @@ class SpatialDataGenerator(object):
     
         """
 
+        df = dataframe
         if self.shuffle:
             df = df.reindex(np.random.permutation(df.index))
 
         if not df.crs == self.src.crs:
-            df = df.to_crs(self.src.crs)
+             = df.to_crs(self.src.crs)
 
         for i in range(0, len(df), batch_size):
             yield self.get_batch(df.iloc[i:i+batch_size]['geometry'])
