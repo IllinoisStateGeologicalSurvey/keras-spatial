@@ -101,7 +101,6 @@ class SpatialDataGenerator(object):
             window = rasterio.windows.Window(left, top, 
                     right-left, bot-top)
             batch.append(src.read(indexes=self.indexes, window=window))
-            print(batch[-1].shape)
 
         return np.stack(batch)
 
