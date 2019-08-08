@@ -81,7 +81,8 @@ class SpatialDataGenerator(object):
         self._source = source
 
         self.src = rasterio.open(source)
-        return
+        if self.indexes == None:
+            self.indexes = list(range(1,src.count+1))
 
     def regular_grid(self, pct_width, pct_height, overlap=0.0):
         """Create a dataframe that divides the spatial extent of the raster.
