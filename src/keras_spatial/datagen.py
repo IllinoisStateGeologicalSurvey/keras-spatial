@@ -1,25 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import numbers
-import geopandas as gpd
-import numpy as np
 import rasterio
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import Resampling
-from rasterio.errors import RasterioIOError
-from pydap.client import open_url
-from pydap.net import HTTPError
+import geopandas as gpd
+import numpy as np
 
+import keras_spatial.grid as grid
 
 class SpatialDataGenerator(object):
 
-    def __init__(self, width, height,
-            source=None, 
-            indexes=None, 
-            crs=None,
-            resampling=Resampling.nearest,
-            shuffle=False):
+    def __init__(self, width=0, height=0, source=None, indexes=None, 
+            crs=None, interleave='band', resampling=Resampling.nearest):
         """
 
         Args:
@@ -29,10 +22,11 @@ class SpatialDataGenerator(object):
           indexes (int|[int]): raster file band (int) or bands ([int,...])
                                (default=None for all bands)
           crs (CRS): produces patches in different crs
-          resampling (str): interpolation method used with target_size
-          shuffle (bool): shuffle batch of data
+          resampling (int): interpolation method used when resampling
+          interleave (str): type of interleave, 'pixel' or 'band'
         """
 
+        self.src = None
         self.width = width
         self.height = height
         if source: 
@@ -40,12 +34,36 @@ class SpatialDataGenerator(object):
         self.indexes = indexes
         self.crs=crs
         self.resampling = resampling
-        self.shuffle = shuffle
+        self.interleave = interleave
 
     def _close(self):
-        if hasattr(self, 'src') and self.src:
+        if self.src:
             self.src.close()
             self.src = None
+
+    @property
+    def extent(self):
+        if self.src:
+            return tuple(self.src.bounds)
+        else:
+            return None
+
+    @property
+    def profile(self):
+        """Return dict of parameters that are likely to re-used."""
+
+        return dict(width=self.width, height=self.height, crs=self.crs, 
+                interleave=self.interleave, resampling=self.resampling)
+
+    @profile.setter
+    def profile(self, profile):
+        """Set parameters from profile dictionary."""
+
+        self.width = profile['width']
+        self.height = profile['height']
+        self.crs = profile['crs']
+        self.interleave = profile['interleave']
+        self.resampling = profile['resampling']
 
     @property
     def source(self):
@@ -62,23 +80,50 @@ class SpatialDataGenerator(object):
         self._close()
         self._source = source
 
-        # try to use rasterio to open local file
-        try:
-            self.src = rasterio.open(source)
-            self._mode = 'local'
-            return
-        except RasterioIOError as e:
-            pass
+        self.src = rasterio.open(source)
+        return
 
-        # try to use pydap to open remote dataset
-        try:
-            self.src = open_url(source)
-            self._mode = 'dap'
-            return
-        except HTTPError as e:
-            pass
+    def regular_grid(self, pct_width, pct_height, overlap=0.0):
+        """Create a dataframe that divides the spatial extent of the raster.
 
-        raise OSError('source not found')
+        Args:
+          pct_width (float): patch size as percentage of spatial extent
+          pct_height (float): patch size as percentage of spatial extent
+          overlap (float): percentage overlap (default=0.0)
+
+        Returns:
+          (GeoDataframe)
+        """
+
+        if not self.src:
+            raise RuntimeError('source not set or failed to open')
+
+        width = (self.src.bounds.right - self.src.bounds.left) * pct_width
+        height = (self.src.bounds.top - self.src.bounds.bottom) * pct_height
+        gdf = grid.regular_grid(*self.src.bounds, width, height)
+        gdf.crs = self.src.crs
+        return gdf
+
+    def random_grid(self, pct_width, pct_height, count):
+        """Create a dataframe that divides the spatial extent of the raster.
+
+        Args:
+          pct_width (float): patch size relative to spatial extent
+          pct_height (float): patch size relative to spatial extent
+          count (int): number of patches
+
+        Returns:
+          (GeoDataframe)
+        """
+
+        if not self.src:
+            raise RuntimeError('source not set or failed to open')
+
+        width = (self.src.bounds.right - self.src.bounds.left) * pct_width
+        height = (self.src.bounds.top - self.src.bounds.bottom) * pct_height
+        gdf = grid.regular_grid(*self.src.bounds, width, height, count)
+        gdf.crs = self.src.crs
+        return gdf
 
     def get_batch(self, src, geometries):
         """Get batch of patches from source raster
@@ -98,9 +143,10 @@ class SpatialDataGenerator(object):
         for bounds in geometries.bounds.itertuples():
             bot, left = src.index(bounds[1], bounds[2])
             top, right = src.index(bounds[3], bounds[4])
-            window = rasterio.windows.Window(left, top, 
-                    right-left, bot-top)
+            window = rasterio.windows.Window(left, top, right-left, bot-top)
             batch.append(src.read(indexes=self.indexes, window=window))
+            if self.interleave == 'pixel' and len(batch[-1].shape) == 3:
+                batch[-1] = np.moveaxis(batch[-1], 0, -1)
 
         return np.stack(batch)
 
@@ -115,12 +161,7 @@ class SpatialDataGenerator(object):
     
         """
 
-        df = dataframe
-        if self.shuffle:
-            df = df.reindex(np.random.permutation(df.index))
-
-        if self.crs:
-            df = df.to_crs(self.crs)
+        df = dataframe.to_crs(self.crs) if self.crs else dataframe
 
         xres = df.bounds.apply(lambda row: row.maxx - row.minx, 
                 axis=1).mean() / self.width
