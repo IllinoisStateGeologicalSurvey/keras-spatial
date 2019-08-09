@@ -69,6 +69,19 @@ class SpatialDataGenerator(object):
         self.resampling = profile['resampling']
 
     @property
+    def crs(self):
+        if self._crs:
+            return self._crs
+        elif self.src:
+            return self.src.crs
+        else:
+            return None
+
+    @crs.setter
+    def crs(self, crs):
+        self._crs = crs
+
+    @property
     def source(self):
         return self._source
 
