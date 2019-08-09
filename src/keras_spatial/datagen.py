@@ -12,7 +12,8 @@ import keras_spatial.grid as grid
 class SpatialDataGenerator(object):
 
     def __init__(self, width=0, height=0, source=None, indexes=None, 
-            crs=None, interleave='band', resampling=Resampling.nearest):
+            crs=None, interleave='band', resampling=Resampling.nearest,
+            preprocess=None):
         """
 
         Args:
@@ -24,6 +25,7 @@ class SpatialDataGenerator(object):
           crs (CRS): produces patches in different crs
           resampling (int): interpolation method used when resampling
           interleave (str): type of interleave, 'pixel' or 'band'
+          preprocess (function): callback invoked on array within generator
         """
 
         self.src = None
@@ -35,6 +37,7 @@ class SpatialDataGenerator(object):
         self.crs=crs
         self.resampling = resampling
         self.interleave = interleave
+        self.preprocess = preprocess
 
     def _close(self):
         if self.src:
@@ -82,7 +85,7 @@ class SpatialDataGenerator(object):
 
         self.src = rasterio.open(source)
         if self.indexes == None:
-            self.indexes = list(range(1,src.count+1))
+            self.indexes = list(range(1, self.src.count+1))
 
     def regular_grid(self, pct_width, pct_height, overlap=0.0):
         """Create a dataframe that divides the spatial extent of the raster.
@@ -122,7 +125,7 @@ class SpatialDataGenerator(object):
 
         width = (self.src.bounds.right - self.src.bounds.left) * pct_width
         height = (self.src.bounds.top - self.src.bounds.bottom) * pct_height
-        gdf = grid.regular_grid(*self.src.bounds, width, height, count)
+        gdf = grid.random_grid(*self.src.bounds, width, height, count)
         gdf.crs = self.src.crs
         return gdf
 
@@ -181,7 +184,10 @@ class SpatialDataGenerator(object):
                 resampling=self.resampling)
 
         for i in range(0, len(df), batch_size):
-            yield self.get_batch(vrt, df.iloc[i:i+batch_size]['geometry'])
+            arr = self.get_batch(vrt, df.iloc[i:i+batch_size]['geometry'])
+            if self.preprocess:
+                arr = self.preprocess(arr)
+            yield arr
 
         vrt.close()
 
