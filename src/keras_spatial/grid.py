@@ -47,7 +47,25 @@ def raster_meta(fname):
         return (src.bounds, (src.width, src.height), src.crs)
 
 
-def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0):
+## TODO complete
+def mask_grid(dataframe, fname, hard=False):
+    """Filter dataframe removing patches outside an area.
+
+    Args:
+      dataframe (GeoDataFrame): dataframe contain grid
+      fname (str): file path to vector boundary
+      hard (bool): if true, patches must be fully within boundary
+
+    Returns:
+      geopandas.GeoDataFrame:
+    """  
+
+    if isinstance(fname, str):
+        with fiona.open(fname) as mask:
+            pass
+
+
+def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0, crs=None):
     """Generate regular grid over extent.
 
     Args:
@@ -58,6 +76,7 @@ def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0):
       xsize (float): patch width
       ysize (float): patch height
       overlap (float): percentage of patch overlap (optional)
+      crs (CRS): crs to assign geodataframe 
 
     Returns:
       geopandas.GeoDataFrame:
@@ -68,10 +87,12 @@ def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0):
     X,Y = np.meshgrid(x, y)
     polys = [box(x, y, x+xsize, y+ysize) for x,y in np.nditer([X,Y])]
 
-    return gpd.GeoDataFrame({'geometry':polys})
+    gdf = gpd.GeoDataFrame({'geometry':polys})
+    gdf.crs = crs
+    return gdf
 
 
-def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count):
+def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count, crs=None):
     """Generate random grid over extent.
 
     Args:
@@ -82,6 +103,7 @@ def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count):
       xsize (float): patch width
       ysize (float): patch height
       count (int): number of patches
+      crs (CRS): crs to assign geodataframe 
 
     Returns:
       :obj:`geopandas.GeoDataFrame`:
@@ -91,7 +113,9 @@ def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count):
     y = np.random.rand(count) * (ymax-ymin-ysize) + ymin
     polys = [box(x, y, x+xsize, y+ysize) for x,y in np.nditer([x,y])]
 
-    return gpd.GeoDataFrame({'geometry':polys})
+    gdf = gpd.GeoDataFrame({'geometry':polys})
+    gdf.crs = crs
+    return gdf
 
 
 def get_parser():
@@ -149,6 +173,10 @@ def get_parser():
         '-r', '--raster',
         metavar='FILE',
         help='raster file used to define extents and projection')
+    parser.add_argument(
+        '-m', '--mask',
+        metavar='FILE',
+        help='vector file used to define irregular study area')
     parser.add_argument(
         '-t', '--target-crs',
         metavar='PROJ',
