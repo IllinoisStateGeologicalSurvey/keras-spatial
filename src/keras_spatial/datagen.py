@@ -98,17 +98,21 @@ class SpatialDataGenerator(object):
         self._source = source
 
         self.src = rasterio.open(source)
-        if ~hasattr(self, 'indexes') or self.indexes is None:
-            print('xxxxxxxxxxxxxxx', self.src.count)
-            self.indexes = list(range(1, self.src.count+1))
-            print(self.indexes)
 
-    def regular_grid(self, pct_width, pct_height, overlap=0.0):
-        """Create a dataframe that divides the spatial extent of the raster.
+        idx = getattr(self, 'indexes', None)
+        if idx is None:
+            self.indexes = list(range(1, self.src.count+1))
+
+    def regular_grid(self, width, height, overlap=0.0):
+        """Create a dataframe that defines the a regular grid of samples.
+
+        The width and height are given in pixels and multiplied by the
+        pixel size of the raster to create samples at the native
+        resolution of the raster.
 
         Args:
-          pct_width (float): patch size as percentage of spatial extent
-          pct_height (float): patch size as percentage of spatial extent
+          width (int): sample size in pixels
+          height (int): sample size in pixels
           overlap (float): percentage overlap (default=0.0)
 
         Returns:
@@ -118,19 +122,22 @@ class SpatialDataGenerator(object):
         if not self.src:
             raise RuntimeError('source not set or failed to open')
 
-        width = (self.src.bounds.right - self.src.bounds.left) * pct_width
-        height = (self.src.bounds.top - self.src.bounds.bottom) * pct_height
-        gdf = grid.regular_grid(*self.src.bounds, width, height)
+        dims = width * self.src.res[0], height * self.src.res[1]
+        gdf = grid.regular_grid(*self.src.bounds, *dims, overlap=overlap)
         gdf.crs = self.src.crs
         return gdf
 
-    def random_grid(self, pct_width, pct_height, count):
-        """Create a dataframe that divides the spatial extent of the raster.
+    def random_grid(self, width, height, count):
+        """Create a dataframe that defines a random set of samples.
+
+        The width and height are given in pixels and multiplied by the
+        pixel size of the raster to create samples at the native
+        resolution of the raster.
 
         Args:
-          pct_width (float): patch size relative to spatial extent
-          pct_height (float): patch size relative to spatial extent
-          count (int): number of patches
+          width (int): sample size in pixels
+          height (int): sample size in pixels
+          count (int): number of samples
 
         Returns:
           (GeoDataframe)
@@ -139,9 +146,8 @@ class SpatialDataGenerator(object):
         if not self.src:
             raise RuntimeError('source not set or failed to open')
 
-        width = (self.src.bounds.right - self.src.bounds.left) * pct_width
-        height = (self.src.bounds.top - self.src.bounds.bottom) * pct_height
-        gdf = grid.random_grid(*self.src.bounds, width, height, count)
+        dims = width * self.src.res[0], height * self.src.res[1]
+        gdf = grid.random_grid(*self.src.bounds, *dims, count)
         gdf.crs = self.src.crs
         return gdf
 
