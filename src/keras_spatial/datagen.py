@@ -11,30 +11,32 @@ import keras_spatial.grid as grid
 
 class SpatialDataGenerator(object):
 
-    def __init__(self, width=0, height=0, source=None, indexes=None, 
+    def __init__(self, source=None, indexes=None, 
+            width=0, height=0, batch_size=32,
             crs=None, interleave='band', resampling=Resampling.nearest,
             preprocess=None):
         """
 
         Args:
-          width (int): patch width in pixels
-          height (int): patch height in pixels
+          width (int): sample width in pixels
+          height (int): sample height in pixels
           source (str): raster file path or OPeNDAP server
           indexes (int|[int]): raster file band (int) or bands ([int,...])
                                (default=None for all bands)
           crs (CRS): produces patches in different crs
           resampling (int): interpolation method used when resampling
           interleave (str): type of interleave, 'pixel' or 'band'
-          preprocess (function): callback invoked on array within generator
+          preprocess (function): callback invoked on each sample 
         """
 
         self.src = None
-        self.width = width
-        self.height = height
         if source: 
             self.source = source
         if indexes is not None:
             self.indexes = indexes
+        self.width = width
+        self.height = height
+        self.batch_size = batch_size
         self.crs=crs
         self.resampling = resampling
         self.interleave = interleave
@@ -173,11 +175,13 @@ class SpatialDataGenerator(object):
             batch.append(src.read(indexes=self.indexes, window=window))
             if self.interleave == 'pixel' and len(batch[-1].shape) == 3:
                 batch[-1] = np.moveaxis(batch[-1], 0, -1)
+            if self.preprocess:
+                batch[-1] = self.preprocess(batch[-1])
 
         return np.stack(batch)
 
-    def flow_from_dataframe(self, dataframe, batch_size=32):
-        """extracts data from source based on dataframe extents
+    def flow_from_dataframe(self, dataframe, width=0, height=0, batch_size=0):
+        """extracts data from source based on sample extents
 
         Args:
           dataframe (geodataframe): dataframe with spatial extents
@@ -187,12 +191,20 @@ class SpatialDataGenerator(object):
     
         """
 
+        width = width if width else self.width
+        height = height if height else self.height
+        if width < 1 or height < 1:
+            raise ValueError('desired sample size must be set')
+        batch_size = batch_size if batch_size else self.batch_size
+        if batch_size < 1:
+            raise ValueError('batch size must be specified')
+
         df = dataframe.to_crs(self.crs) if self.crs else dataframe
 
         xres = df.bounds.apply(lambda row: row.maxx - row.minx, 
-                axis=1).mean() / self.width
+                axis=1).mean() / width
         yres = df.bounds.apply(lambda row: row.maxy - row.miny, 
-                axis=1).mean() / self.height
+                axis=1).mean() / height
 
         minx, miny, maxx, maxy = df.total_bounds
         width = (maxx - minx) / xres
@@ -206,10 +218,7 @@ class SpatialDataGenerator(object):
                 resampling=self.resampling)
 
         for i in range(0, len(df), batch_size):
-            arr = self.get_batch(vrt, df.iloc[i:i+batch_size]['geometry'])
-            if self.preprocess:
-                arr = self.preprocess(arr)
-            yield arr
+            yield self.get_batch(vrt, df.iloc[i:i+batch_size]['geometry'])
 
         vrt.close()
 
