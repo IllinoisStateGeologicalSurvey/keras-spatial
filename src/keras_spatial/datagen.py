@@ -22,11 +22,12 @@ class SpatialDataGenerator(object):
           height (int): sample height in pixels
           source (str): raster file path or OPeNDAP server
           indexes (int|[int]): raster file band (int) or bands ([int,...])
-                               (default=None for all bands)
+                  (default=None for all bands)
           crs (CRS): produces patches in different crs
           resampling (int): interpolation method used when resampling
           interleave (str): type of interleave, 'pixel' or 'band'
-          preprocess (function): callback invoked on each sample 
+          preprocess (tuple(function, list, dict)): callback invoked on 
+                  each sample during batch creation
         """
 
         self.src = None
@@ -176,7 +177,8 @@ class SpatialDataGenerator(object):
             if self.interleave == 'pixel' and len(batch[-1].shape) == 3:
                 batch[-1] = np.moveaxis(batch[-1], 0, -1)
             if self.preprocess:
-                batch[-1] = self.preprocess(batch[-1])
+                func, args, kwargs = self.preprocess
+                batch[-1] = func(batch[-1], *args, **kwargs)
 
         return np.stack(batch)
 
@@ -221,4 +223,25 @@ class SpatialDataGenerator(object):
             yield self.get_batch(vrt, df.iloc[i:i+batch_size]['geometry'])
 
         vrt.close()
+
+    def set_preprocess_callback(self, func, *args, **kwargs):
+        """set a callback function that is applied to every sample array
+
+        The callback function will be invoked on every sample array
+        during the during the generation process. The sample array
+        will be the first argument passed. Additional arguments
+        (args, kwargs) are optional. The callback can alter the
+        sample in any way and care must be taken maintain the 
+        compatiblity of the results will be merged with other
+        SDGs.
+
+        ndarray = func(ndarray, *args, **kwargs)
+
+        Args:
+          func (function): function to be called
+          args (list): arguments to be passed to the callback
+          kwargs (dict): keyword arguments to be passed to callback
+        """
+
+        self.preprocess = (func, args, kwargs)
 
