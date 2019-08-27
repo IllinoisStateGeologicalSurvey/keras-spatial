@@ -70,14 +70,16 @@ def test_extent():
 
 def test_regular_grid():
     dg = SpatialDataGenerator()
+    dg.width, dg.height = 64,64
     dg.source = 'data/small.tif'
-    df = dg.regular_grid(64, 64)
+    df = dg.regular_grid()
     assert len(df) > 0
 
 def test_random_grid():
     dg = SpatialDataGenerator()
     dg.source = 'data/small.tif'
-    df = dg.random_grid(64, 64, 100)
+    dg.width, dg.height = 64,64
+    df = dg.random_grid(100)
     assert len(df) == 100
 
 def test_sample_size():
