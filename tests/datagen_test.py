@@ -171,7 +171,7 @@ def test_preprocess_modify_array():
     df = sdg.regular_grid(*size)
     df['max'] = [a.max() for a in sdg.flow_from_dataframe(df, batch_size=1)]
 
-    sdg.set_preprocess_callback(pre, df['max'].max())
+    sdg.add_preprocess_callback('normalize', pre, df['max'].max())
     arr = next(sdg.flow_from_dataframe(df))
     assert len(arr.shape) == 3
     assert arr.shape[0] == min(sdg.batch_size, len(df))
@@ -190,7 +190,7 @@ def test_preprocess_add_array():
     sdg.width, sdg.height = size
     df = sdg.regular_grid(*size)
 
-    sdg.set_preprocess_callback(pre)
+    sdg.add_preprocess_callback('pre', pre)
     arr = next(sdg.flow_from_dataframe(df))
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(sdg.batch_size, len(df))

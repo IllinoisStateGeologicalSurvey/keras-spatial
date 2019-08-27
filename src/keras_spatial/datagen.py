@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import collections
 import rasterio
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import Resampling
@@ -26,8 +27,8 @@ class SpatialDataGenerator(object):
           crs (CRS): produces patches in different crs
           resampling (int): interpolation method used when resampling
           interleave (str): type of interleave, 'pixel' or 'band'
-          preprocess (tuple(function, list, dict)): callback invoked on 
-                  each sample during batch creation
+          preprocess (tuple(str, func, list, dict) | list(tuples)): one or
+                   more callbacks to each sample during batch creation
         """
 
         self.src = None
@@ -41,7 +42,13 @@ class SpatialDataGenerator(object):
         self.crs=crs
         self.resampling = resampling
         self.interleave = interleave
-        self.preprocess = preprocess
+
+        self.preprocess = collections.OrderedDict()
+        if preprocess and isinstance(preprocess[0], str):
+            self.preprocess[preprocess[0]] = preprocess[1:]
+        elif preprocess:
+            for cb in preprocess:
+                self.preprocess[cb[0]] = cb[1:]
 
     def _close(self):
         if self.src:
@@ -176,8 +183,7 @@ class SpatialDataGenerator(object):
             batch.append(src.read(indexes=self.indexes, window=window))
             if self.interleave == 'pixel' and len(batch[-1].shape) == 3:
                 batch[-1] = np.moveaxis(batch[-1], 0, -1)
-            if self.preprocess:
-                func, args, kwargs = self.preprocess
+            for func,args,kwargs in self.preprocess.values():
                 batch[-1] = func(batch[-1], *args, **kwargs)
 
         return np.stack(batch)
@@ -224,8 +230,8 @@ class SpatialDataGenerator(object):
 
         vrt.close()
 
-    def set_preprocess_callback(self, func, *args, **kwargs):
-        """set a callback function that is applied to every sample array
+    def add_preprocess_callback(self, name, func, *args, **kwargs):
+        """add a callback function that is applied to every sample array
 
         The callback function will be invoked on every sample array
         during the during the generation process. The sample array
@@ -238,10 +244,20 @@ class SpatialDataGenerator(object):
         ndarray = func(ndarray, *args, **kwargs)
 
         Args:
+          name (str): name of the callback
           func (function): function to be called
           args (list): arguments to be passed to the callback
           kwargs (dict): keyword arguments to be passed to callback
         """
 
-        self.preprocess = (func, args, kwargs)
+        self.preprocess[name] = (func, args, kwargs)
+
+    def del_preprocess_callback(self, name):
+        """remove a callback function from processing list
+
+        Args:
+          name (str): name of callback to be removed
+        """
+
+        del self.preprocess[name]
 
