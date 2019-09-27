@@ -10,72 +10,50 @@ from pydap.net import HTTPError
 from keras_spatial.datagen import SpatialDataGenerator
 
 
-class DapDataGenerator(SpatialDataGenerator):
+class DapDataGenerator:
 
-    def __init__(self, source=None, bands=1, target_crs=None,
-            target_size=None, interpolation='nearest',
-            shuffle=False):
+    def __init__(self, source=None, variables=None, geotransform=None,
+            target_crs=None, target_size=None, interleave='pixel',
+            interpolation='nearest', shuffle=False):
         """
 
         Args:
-          source (str): raster file path or OPeNDAP server
-          bands (int|[int]): raster file band (int) or bands ([int,...])
+          source (str): URL to OPeNDAP Dataset
           target_crs (str): proj4 definition defaults to dataframe.crs
-          shuffle (bool): shuffle batch of data
           target_size ((int,int)): tuple with patch size
+          interleave (str): 'band' or 'pixel' if multiple bands are returned
+          shuffle (bool): shuffle batch of data
           interpolation (str): interpolation method used with target_size
         """
 
-        self._mode = ''
-        self.src = None
+        self.dataset = None
+
         self.source = source
-        self.bands = bands
+        self.variables = variables
+        self.geotransform = geotransform
+        self.target_crs = target_crs
         self.target_size = target_size
+        self.interleave = interleave
         self.interpolation = interpolation
         self.shuffle = shuffle
 
     @property
     def source(self):
+        """Return source URL"""
+
         return self._source
 
-    @source.setter
+    @source.setter()
     def source(self, source):
-        """Save and open the source string
+        """Open Dataset and extract variables and geotransform
 
         Args:
-          source (str): local file path or URL using dap
+          source (str): URL to OPeNDAP Dataset
         """
 
         self._source = source
-        if not source:
-            return
-
-        # TODO if src is set close it?
-        if self.src:
-            self._mode = None
-            pass
-
-        # try to use rasterio to open local file
-        try:
-            self._mode = 'local'
-            self.src = rasterio.open(source)
-            return
-        except RasterioIOError as e:
-            pass
-
-        # try to use pydap to open remote dataset
-        try:
-            self._mode = 'dap'
-            self.src = open_url(source)
-            return
-        except HTTPError as e:
-            pass
-
-        raise OSError('source not found')
-
-    @property
-    def mode(self):
-        return self._mode
+        if source:
+            self.dataset = open_url(source)
 
     def get_batch(self, geometries):
         """Get batch of patches from source raster
@@ -96,6 +74,23 @@ class DapDataGenerator(SpatialDataGenerator):
 
         return np.stack(batch)
 
+    def _check_dataset(self):
+        """Ensure the dataset, variables, and geotransform are sane"""
+
+        if not self.dataset:
+            raise RuntimeError('dataset is not open, set source')
+
+        _vars = self.dataset.variables.keys()
+        if not self.variables:
+            self.variables = _vars
+        elif not all(v in _vars for v in self.variables):
+            raise RuntimeError('variable {} not in dataset'.format(v))
+
+        if not self.geotransform:
+
+
+
+
     def flow_from_dataframe(self, df, target_crs=None, batch_size=32):
         """extracts data from source based on dataframe extents
 
@@ -107,6 +102,9 @@ class DapDataGenerator(SpatialDataGenerator):
         Returns:
     
         """
+
+        self._check_dataset()
+
 
         if self.shuffle:
             df = df.reindex(np.random.permutation(df.index))

@@ -50,3 +50,6 @@ def test_random_grid():
     assert df.total_bounds[1] >= bounds[1]
     assert df.total_bounds[2] <= bounds[2]
     assert df.total_bounds[3] <= bounds[3]
+
+def test_sample_size():
+    bounds, _, _ = grid.raster_meta('data/small.tif')

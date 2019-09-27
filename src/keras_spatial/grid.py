@@ -65,6 +65,20 @@ def mask_grid(dataframe, fname, hard=False):
             pass
 
 
+def sample_size(dataframe):
+    """Return the sample size in coordinate space.
+
+    Args:
+      dataframe (GeoDataFrame): dataframe containing samples
+
+    Returns:
+      tuple(float, float): tuple with width and height in map units
+    """
+
+    left, bottom, right, top = df.iloc[0].bounds
+    return (left - right, top - bottom)
+
+
 def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0, crs=None):
     """Generate regular grid over extent.
 
