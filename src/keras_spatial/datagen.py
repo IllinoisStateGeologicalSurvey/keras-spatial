@@ -10,6 +10,9 @@ import numpy as np
 
 import keras_spatial.grid as grid
 
+import logging
+log = logging.getLogger(__name__)
+
 class SpatialDataGenerator(object):
 
     def __init__(self, source=None, indexes=None, 
@@ -113,12 +116,15 @@ class SpatialDataGenerator(object):
         if idx is None:
             self.indexes = list(range(1, self.src.count+1))
 
-    def regular_grid(self, width=0, height=0, overlap=0.0):
+    def regular_grid(self, width, height, overlap=0.0):
         """Create a dataframe that defines the a regular grid of samples.
 
         The width and height are given in pixels and multiplied by the
         pixel size of the raster to create samples at the native
         resolution of the raster.
+
+        Note: in this context width and height are unrelated to the 
+        DL model inputs.
 
         Args:
           width (int): sample size in pixels 
@@ -129,11 +135,6 @@ class SpatialDataGenerator(object):
           (GeoDataframe)
         """
 
-        width = width if width else self.width
-        height = height if height else self.height
-        if width < 1 or height < 1:
-            raise ValueError('width and height must be specified')
-
         if not self.src:
             raise RuntimeError('source not set or failed to open')
 
@@ -142,12 +143,14 @@ class SpatialDataGenerator(object):
         gdf.crs = self.src.crs
         return gdf
 
-    def random_grid(self, count, width=0, height=0):
+    def random_grid(self, width, height, count):
         """Create a dataframe that defines a random set of samples.
 
         The width and height are given in pixels and multiplied by the
         pixel size of the raster to create samples at the native
         resolution of the raster.
+
+        Note: width and height unrelated to the DL model inputs.
 
         Args:
           width (int): sample size in pixels
@@ -157,11 +160,6 @@ class SpatialDataGenerator(object):
         Returns:
           (GeoDataframe)
         """
-
-        width = width if width else self.width
-        height = height if height else self.height
-        if width < 1 or height < 1:
-            raise ValueError('width and height must be specified')
 
         if not self.src:
             raise RuntimeError('source not set or failed to open')
