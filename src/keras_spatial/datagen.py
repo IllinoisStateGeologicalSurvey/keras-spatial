@@ -17,7 +17,7 @@ class SpatialDataGenerator(object):
 
     def __init__(self, source=None, indexes=None, 
             width=0, height=0, batch_size=32,
-            crs=None, interleave='band', resampling=Resampling.nearest,
+            crs=None, interleave='pixel', resampling=Resampling.nearest,
             preprocess=None):
         """
 
