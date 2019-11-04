@@ -70,36 +70,47 @@ def test_extent():
 
 def test_regular_grid():
     dg = SpatialDataGenerator()
-    dg.width, dg.height = 64,64
     dg.source = 'data/small.tif'
-    df = dg.regular_grid()
+    df = dg.regular_grid(64, 64)
     assert len(df) > 0
 
 def test_random_grid():
     dg = SpatialDataGenerator()
     dg.source = 'data/small.tif'
-    dg.width, dg.height = 64,64
-    df = dg.random_grid(100)
+    df = dg.random_grid(64, 64, 100)
     assert len(df) == 100
 
 def test_sample_size():
+    sdg = SpatialDataGenerator()
+    sdg.source = 'data/small.tif'
+    df = sdg.regular_grid(64,64)
+
+    gen = sdg.flow_from_dataframe(df, 64, 64)
+    arr = next(gen)
+
+    assert len(arr.shape) == 4
+    assert arr.shape[0] == min(sdg.batch_size, len(df))
+    assert arr.shape[-2] == 64 and arr.shape[-1] == 64
+
+def test_get_size_upscale():
     size = (64,64)
     sdg = SpatialDataGenerator()
     sdg.source = 'data/small.tif'
-    sdg.width, sdg.height = size
-    df = sdg.regular_grid(*size)
-    gen = sdg.flow_from_dataframe(df)
+    df = sdg.regular_grid(size[0]//4, size[1]//4)
+
+    gen = sdg.flow_from_dataframe(df, *size)
     arr = next(gen)
 
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(sdg.batch_size, len(df))
     assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
 
-def test_get_size_override():
-    size = (64,64)
+def test_get_size_downscale():
+    size = (16,16)
     sdg = SpatialDataGenerator()
     sdg.source = 'data/small.tif'
-    df = sdg.regular_grid(*size)
+    df = sdg.regular_grid(size[0]*4, size[1]*4)
+
     gen = sdg.flow_from_dataframe(df, *size)
     arr = next(gen)
 
@@ -108,15 +119,14 @@ def test_get_size_override():
     assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
 
 def test_get_batch_size():
-    size = (64,64)
+    size = (64, 64)
     batch_size = 2
     sdg = SpatialDataGenerator()
     sdg.source = 'data/small.tif'
-    sdg.width, sdg.height = size
     sdg.batch_size = batch_size
     df = sdg.regular_grid(*size)
 
-    gen = sdg.flow_from_dataframe(df)
+    gen = sdg.flow_from_dataframe(df, *size)
     arr = next(gen)
 
     assert len(arr.shape) == 4
@@ -128,10 +138,9 @@ def test_get_batch_size_override():
     batch_size = 2
     sdg = SpatialDataGenerator()
     sdg.source = 'data/small.tif'
-    sdg.width, sdg.height = size
     df = sdg.regular_grid(*size)
 
-    gen = sdg.flow_from_dataframe(df, batch_size=batch_size)
+    gen = sdg.flow_from_dataframe(df, *size, batch_size=batch_size)
     arr = next(gen)
 
     assert len(arr.shape) == 4
@@ -142,10 +151,9 @@ def test_get_batch_match_frame_len():
     size = (64,64)
     sdg = SpatialDataGenerator()
     sdg.source = 'data/small.tif'
-    sdg.width, sdg.height = size
     df = sdg.regular_grid(*size)
 
-    gen = sdg.flow_from_dataframe(df, batch_size=3)
+    gen = sdg.flow_from_dataframe(df, *size, batch_size=3)
     count = sum([batch.shape[0] for batch in gen])
     assert count == len(df)
 
