@@ -101,19 +101,22 @@ The _indexes_ argument selects bands in a multiband raster. By default
 all bands are read and the _indexes_ argument is updated when the raster 
 _source_ is set.
 
-If _interleave_ is set to 'pixel' and more than one band is read (based on _indexes_),
-the numpy array axes are moved. This can lead to incompatible shapes when using
-multiple SDG generators -- use with care.
+In multiband situations, if _interleave_ is set to 'band' the numpy array axes
+are moved to the following order [batch_size, bands, height, width].  This 
+can lead to incompatible shapes when using multiple SDG generators -- 
+use with care. The default interleave is 'pixel' which is compatible with
+Keras.
 
 ```Python
+# file.tif is a 5 band raster
 sdg = SpatialDataGenerator('/path/to/file.tif')
-gen = sdg.flow_from_dataframe(df, batch_size=1)
+gen = sdg.flow_from_dataframe(df, 128, 128, batch_size=1)
 print(next(gen).shape)
-> [1, 5, 200, 200]
-sdg.interleave = 'pixel'
-gen = sdg.flow_from_dataframe(df, batch_size=1)
+> [1, 128, 128, 5]
+sdg.interleave = 'band'
+gen = sdg.flow_from_dataframe(df, 128, 128, batch_size=1)
 print(next(gen.shape))
-> [1, 200, 200, 5]
+> [1, 5, 200, 200]
 ```
 
 Because more than one SDG is expected to be used simultaneously and SDGs 
@@ -151,7 +154,8 @@ A generator of numpy ndarrays of the shape [batch_size, height, width, bands].
 ##### Example
 ```Python
 sdg = SpatialDataGenerator(source='/path/to/file.tif')
-gen = sdg.flow_from_dataframe(df, 200, 200)
+gen = sdg.flow_from_dataframe(df, 128, 128)
+arr = next(gen)
 ```
 
 #### random_grid
