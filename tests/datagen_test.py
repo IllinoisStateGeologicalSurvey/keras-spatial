@@ -88,9 +88,10 @@ def test_sample_size():
     gen = sdg.flow_from_dataframe(df, 64, 64)
     arr = next(gen)
 
+
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(sdg.batch_size, len(df))
-    assert arr.shape[-2] == 64 and arr.shape[-1] == 64
+    assert arr.shape[1] == 64 and arr.shape[2] == 64
 
 def test_get_size_upscale():
     size = (64,64)
@@ -103,7 +104,6 @@ def test_get_size_upscale():
 
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(sdg.batch_size, len(df))
-    assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
 
 def test_get_size_downscale():
     size = (16,16)
@@ -116,7 +116,7 @@ def test_get_size_downscale():
 
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(sdg.batch_size, len(df))
-    assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
+    assert arr.shape[1] == size[1] and arr.shape[2] == size[0]
 
 def test_get_batch_size():
     size = (64, 64)
@@ -131,7 +131,7 @@ def test_get_batch_size():
 
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(batch_size, len(df))
-    assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
+    assert arr.shape[1] == size[1] and arr.shape[2] == size[0]
 
 def test_get_batch_size_override():
     size = (64,64)
@@ -145,7 +145,7 @@ def test_get_batch_size_override():
 
     assert len(arr.shape) == 4
     assert arr.shape[0] == min(batch_size, len(df))
-    assert arr.shape[-2] == size[0] and arr.shape[-1] == size[1]
+    assert arr.shape[1] == size[1] and arr.shape[2] == size[0]
 
 def test_get_batch_match_frame_len():
     size = (64,64)
