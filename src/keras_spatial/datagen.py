@@ -229,12 +229,25 @@ class SpatialDataGenerator(object):
         if batch_size < 1:
             raise ValueError('batch size must be specified')
 
-        df = dataframe.to_crs(self.crs) if self.crs else dataframe
+        # TODO should reprojection be handled here or externally?
+        # TODO Is there equivelancy check for projections?
+        #df = dataframe.to_crs(self.crs) if self.crs else dataframe
+        df = dataframe
 
-        xres = df.bounds.apply(lambda row: row.maxx - row.minx, 
-                axis=1).mean() / width
-        yres = df.bounds.apply(lambda row: row.maxy - row.miny, 
-                axis=1).mean() / height
+        # TODO this finds the average sample area and computes the desired
+        #  resolution based on it and sample size. Probably not what is
+        #  needed. Assume uniform sized samples for now.
+        # TODO the apply seems VERY slow but other options seem slower
+        #  including, oddly, the vectorized version
+        #  i.e. xres = (df.bounds.maxx - df.bounds.minx).mean() / width
+        #xres = df.bounds.apply(lambda row: row.maxx - row.minx, 
+        #        axis=1).mean() / width
+        #yres = df.bounds.apply(lambda row: row.maxy - row.miny, 
+        #        axis=1).mean() / height
+        #xres = (df.bounds.iloc[0].maxx - df.bounds.iloc[0].minx) / width
+        #yres = (df.bounds.iloc[0].maxy - df.bounds.iloc[0].miny) / height
+        minx, miny, maxx, maxy = df.iloc[0].geometry.bounds
+        xres, yres = (maxx - minx) / width, (maxy - miny) / height
 
         minx, miny, maxx, maxy = df.total_bounds
         width = (maxx - minx) / xres
