@@ -116,7 +116,7 @@ class SpatialDataGenerator(object):
         if idx is None:
             self.indexes = list(range(1, self.src.count+1))
 
-    def regular_grid(self, width, height, overlap=0.0):
+    def regular_grid(self, width, height, overlap=0.0, units='native'):
         """Create a dataframe that defines the a regular grid of samples.
 
         The width and height are given in pixels and multiplied by the
@@ -127,8 +127,9 @@ class SpatialDataGenerator(object):
         DL model inputs.
 
         Args:
-          width (int): sample size in pixels 
-          height (int): sample size in pixels
+          width (int): sample size 
+          height (int): sample size
+          units (str): units applied to sample sizes ('native' or 'pixels')
           overlap (float): percentage overlap (default=0.0)
 
         Returns:
@@ -138,12 +139,18 @@ class SpatialDataGenerator(object):
         if not self.src:
             raise RuntimeError('source not set or failed to open')
 
-        dims = width * self.src.res[0], height * self.src.res[1]
+        if units == 'pixels':
+            dims = width * self.src.res[0], height * self.src.res[1]
+        elif units == 'native':
+            dims = width, height
+        else:
+            raise ValueError('units must be "native" or "pixels"')
+
         gdf = grid.regular_grid(*self.src.bounds, *dims, overlap=overlap)
         gdf.crs = self.src.crs
         return gdf
 
-    def random_grid(self, width, height, count):
+    def random_grid(self, width, height, count, units='native'):
         """Create a dataframe that defines a random set of samples.
 
         The width and height are given in pixels and multiplied by the
@@ -155,6 +162,7 @@ class SpatialDataGenerator(object):
         Args:
           width (int): sample size in pixels
           height (int): sample size in pixels
+          units (str): units applied to sample sizes ('native' or 'pixels')
           count (int): number of samples
 
         Returns:
@@ -164,7 +172,13 @@ class SpatialDataGenerator(object):
         if not self.src:
             raise RuntimeError('source not set or failed to open')
 
-        dims = width * self.src.res[0], height * self.src.res[1]
+        if units == 'pixels':
+            dims = width * self.src.res[0], height * self.src.res[1]
+        elif units == 'native':
+            dims = width, height
+        else:
+            raise ValueError('units must be "native" or "pixels"')
+
         gdf = grid.random_grid(*self.src.bounds, *dims, count)
         gdf.crs = self.src.crs
         return gdf
@@ -204,7 +218,7 @@ class SpatialDataGenerator(object):
           batch_size (int): batch size to process (default=32)
 
         Returns:
-    
+          Iterator[ndarray]
         """
 
         width = width if width else self.width
