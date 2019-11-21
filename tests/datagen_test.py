@@ -71,8 +71,19 @@ def test_extent():
 def test_regular_grid():
     dg = SpatialDataGenerator()
     dg.source = 'data/small.tif'
-    df = dg.regular_grid(64, 64)
+    df = dg.regular_grid(100, 100)
     assert len(df) > 0
+    assert (df.bounds.maxx - df.bounds.minx).mean() == 100
+    assert (df.bounds.maxy - df.bounds.miny).mean() == 100
+
+def test_regular_grid_pixels():
+    dg = SpatialDataGenerator()
+    dg.source = 'data/small.tif'
+    df = dg.regular_grid(64, 64, units='pixels')
+
+    assert len(df) > 0
+    assert (df.bounds.maxx - df.bounds.minx).mean() == 64 * dg.src.res[0]
+    assert (df.bounds.maxy - df.bounds.miny).mean() == 64 * dg.src.res[1]
 
 def test_random_grid():
     dg = SpatialDataGenerator()
