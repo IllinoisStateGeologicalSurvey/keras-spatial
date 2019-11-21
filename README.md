@@ -1,16 +1,26 @@
 
 # Keras Spatial
-Keras Spatial includes data generators and utilities designed to simplify 
-working with spatial data.
+Keras Spatial includes data generators and tools designed to simplify 
+the preprocessing of spatial data for deep learning applications.
 
-Keras Spatial provides a data generator based on a raster file. The 
-generator reads directly from this source and eliminates the need to
-create small raster files in heirarchical directory structure. The
-raster file may reside locally or remotely. Any necessary reprojections
+Keras Spatial provides a data generator that reads samples directly
+from a raster data source and eliminates the need to create small, 
+individual raster files prior to model execution. The raster data 
+source may be local or remote service. Any necessary reprojections 
 and scaling is handled automatically.
 
-Additional gridding utilties are available to assist in the creation of a dataframes 
-based on the spatial extent of a raster and number of desired samples.
+Central to the use of Keras Spatial is a GeoPandas GeoDataFrame which
+defines a virtual sample set, a list of samples that drives the data
+generator. The dataframe can also be used to filter samples based
+on different aspects such as the existance of nodata, handling 
+imbalanced label distributions, and storing sample attributes used
+in normalization amoung other data augmentation functions.
+
+Features include:
+* Sample extraction from local or remote data sources -- no intermediate files
+* Automatic reprojection and resampling as needed
+* Sample augmentation using user-defined callback system
+* Flexible structure improves organization and data management
 
 ## Installation
 To install the package from PyPi repository you can execute the following command:
@@ -28,7 +38,7 @@ $ pip install git+https://github.com/IllinoisStateGeologicalSurvey/keras-spatial
 ## Quickstart
 
 1. Create a SpatialDataGen and set the source raster
-1. Create a geodataframe with 200x200 pixel samples covering the spatial extent of the raster
+1. Create a geodataframe with 200x200 (in projection units) samples covering the spatial extent of the raster
 1. Create the generator producing arrays with shape [32, 128, 128, 1]
 1. Fit model
 
@@ -38,7 +48,7 @@ from keras_spatial.datagen import SpatialDataGenerator
 sdg = SpatialDataGenerator(source='/path/to/file.tif')
 geodataframe = sdg.regular_grid(200, 200)
 generator = sdg.flow_from_dataframe(geodataframe, 128, 128, batch_size=32)
-model.fit_generator(generator, ...)
+model(generator, ...)
 ```
 
 ## Usage
@@ -69,13 +79,10 @@ few arguments.
 - source (path or url): raster source
 - width (int): array size produced by generator
 - height (int): array size produced by generator
-- indexes (int or sequence of ints): one or more raster bands to sampled
-- crs (CRS): the desired coordinate reference system if different from source
+- indexes (int or tuple of ints): one or more raster bands to sampled
 - interleave (str): type of interleave 'band' or 'pixel' (default='pixel')
 - resampling (int): One of the values from rasterio.enums.Resampling 
 (default=Resampling.nearest)
-- preprocess (function): callback function invoked on the numpy array prior
-to returning it to the model
 
 Raises RasterioIOError when the source is set if the file or remote 
 resource is not available.
@@ -84,18 +91,12 @@ resource is not available.
 
 ```Python
 from keras_spatial import SpatialDataGenerator
-sdg = SpatialDataGenerator()
-sdg.source = '/path/to/file.tif'
+
+sdg = SpatialDataGenerator(source='/path/to/file.tif')
 sdg.width, sdg.height = 128,128
 ```
 The source must be set prior to calling flow_from_dataframe.  Width and 
 height are also required but maybe passed as arguments to flow_from_dataframe.
-
-```Python
-sdg1 = SpatialDataGenerator()
-sdg1.source = '/path/to/file.tif'
-sdg2 = SpatialDataGenerator(source='/path/to/file.tif', width=200)
-```
 
 The _indexes_ argument selects bands in a multiband raster. By default 
 all bands are read and the _indexes_ argument is updated when the raster 
@@ -105,7 +106,7 @@ In multiband situations, if _interleave_ is set to 'band' the numpy array axes
 are moved to the following order [batch_size, bands, height, width].  This 
 can lead to incompatible shapes when using multiple SDG generators -- 
 use with care. The default interleave is 'pixel' which is compatible with
-Keras.
+Tensorflow.
 
 ```Python
 # file.tif is a 5 band raster
@@ -160,7 +161,7 @@ arr = next(gen)
 
 #### random_grid
 ```Python
-random_grid(width, height, count)
+random_grid(width, height, count, units='native')
 ```
 
 Creates a geodataframe suitable to passing to the flow_from_dataframe 
@@ -171,6 +172,7 @@ spatial extents.
 - width (int): width in pixels
 - height (int): height in pixels
 - count (int): number of samples
+- units (str): units for width and height, either native or in pixels
 
 ##### Returns
 A GeoDataFrame defining the polygon boundary of each sample.
@@ -183,7 +185,7 @@ df = sdg.random_grid(200, 200, 1000)
 
 #### regular_grid
 ```Python
-regular_grid(width, height, overlap)
+regular_grid(width, height, overlap=0.0, units='native')
 ```
 
 Creates a geodataframe suitable to passing to the flow_from_dataframe 
@@ -194,6 +196,7 @@ spatial extents.
 - width (int): width in pixels
 - height (int): width in pixels
 - overlap (float): percentage of overlap (default=0.0)
+- units (str): units for width and height, either native or in pixels
 
 ##### Returns
 A GeoDataFrame defining the polygon boundary of each sample.
@@ -215,8 +218,7 @@ df = labels.regular_grid(200,200)
 
 samples = SpatialDataGenerator()
 samples.source = 'https://server.com/files/data.tif'
-samples.width, samples.height = 128, 128
-samples.crs = labels.crs
+samples.width, samples.height = labels.width, label.height
 
 train_gen = zip(labels.flow_from_dataframe(df), patches.flow_from_dataframe(df))
 model(train_gen)
