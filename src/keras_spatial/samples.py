@@ -153,9 +153,10 @@ class AttributeGenerator(object):
         for arr in sdg.flow_from_dataframe(df, width, height, batch_size=1):
             for name,callback in self.callbacks.items():
                 func, args, kwargs = callback
-                attributes[name] = func(arr, *args, **kwargs)
+                attributes[name].append(func(arr, *args, **kwargs))
 
         for name,values in attributes.items():
+            print(values)
             df[name] = values
 
         return df
