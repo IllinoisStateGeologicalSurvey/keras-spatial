@@ -8,7 +8,7 @@ samples from a remote raster source.
 
 from keras_spatial import SpatialDataGenerator
 
-def example()
+def example():
     sdg = SpatialDataGenerator()
     sdg.source = 'http://lidar.ncsa.illinois.edu:9000/test/mclean_roi.tif'
 
