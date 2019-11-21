@@ -2,19 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-This is a skeleton file that can serve as a starting point for a Python
-console script. To run this script uncomment the following lines in the
-[options.entry_points] section in setup.cfg:
-
-    console_scripts =
-         fibonacci = keras_spatial.skeleton:run
-
-Then run `python setup.py install` which will install the command `fibonacci`
-inside your current environment.
-Besides console scripts, the header (i.e. until _logger...) of this file can
-also be used as template for Python modules.
-
-Note: This skeleton file can be safely removed if not needed!
 """
 
 import logging
@@ -27,8 +14,8 @@ from shapely.geometry import box
 from keras_spatial import __version__
 
 __author__ = "Jeff Terstriep"
-__copyright__ = "Jeff Terstriep"
-__license__ = "mit"
+__copyright__ = "University of Illinois Board of Trustees"
+__license__ = "ncsa"
 
 _logger = logging.getLogger(__name__)
 
@@ -61,8 +48,8 @@ def sample_size(dataframe):
       tuple(float, float): tuple with width and height in map units
     """
 
-    left, bottom, right, top = df.iloc[0].bounds
-    return (left - right, top - bottom)
+    left, bottom, right, top = dataframe.iloc[0].geometry.bounds
+    return (abs(left - right), abs(top - bottom))
 
 
 def regular_grid(xmin, ymin, xmax, ymax, xsize, ysize, overlap=0, crs=None):
@@ -106,7 +93,7 @@ def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count, crs=None):
       crs (CRS): crs to assign geodataframe 
 
     Returns:
-      :obj:`geopandas.GeoDataFrame`:
+      (GeoDataFrame)
     """
 
     x = np.random.rand(count) * (xmax-xmin-xsize) + xmin
@@ -156,14 +143,20 @@ class AttributeGenerator(object):
                 attributes[name].append(func(arr, *args, **kwargs))
 
         for name,values in attributes.items():
-            print(values)
             df[name] = values
 
         return df
-                
+
+    def nodata(self, value):
+        """convenience method to add callback to count nodata cells"""
+
+        def _nodata(arr, value):
+            return (arr == value).sum()
+
+        self.append('nodata', _nodata, value)
 
     def minmax(self):
-        """convenience method to add min and max callbacks"""
+        """convenience method to add callbacks for min and max"""
 
         self.append('min', np.amin)
         self.append('max', np.amax)
