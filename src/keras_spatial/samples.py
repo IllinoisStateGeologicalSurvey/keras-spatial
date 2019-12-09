@@ -105,6 +105,30 @@ def random_grid(xmin, ymin, xmax, ymax, xsize, ysize, count, crs=None):
     return gdf
 
 
+def point_grid(df, xsize, ysize, inplace=True):
+    """Generate sample grid from GeoDataFrame with points.
+
+    Args:
+      df (GeoDataFrame): 
+      xsize (float): sample width in projection units
+      ysize (float): sample height in projection units
+      inplace (bool): convert points to polygons preserving attributes
+
+    Returns:
+      (GeoDataFrame):
+    """
+
+    halfx, halfy = xsize / 2.0, ysize / 2.0
+    polys = gpd.GeoSeries([box(pt.x - halfx, pt.y - halfy, 
+            pt.x + halfx, pt.y + halfy) for pt in df.geometry])
+
+    if inplace:
+        df['geometry'] = polys
+        return df
+    else:
+        return gpd.GeoDataFrame(geometry=polys)
+
+
 class AttributeGenerator(object):
 
     def __init__(self):
@@ -167,4 +191,5 @@ class AttributeGenerator(object):
         self.minmax()
         self.append('mean', np.mean)
         self.append('std', np.std)
+
 
